@@ -1,0 +1,203 @@
+---
+title: "Assignment4"
+NAME: "Vishal Pawar"
+output: html_document
+date: "2023-10-08"
+---
+Data is based on trend and seasonality of gold price falling in duration interval jan-2015 to july 2020. Where price of gold is effected by various parameters geopolitical events, inflation, interest rates, currency fluctuations, and more. Our task is to forecast using different parameters and finding the best approach and outcome
+```{r}
+
+
+library(fpp) #declare library fpp
+library(fpp2)#declare library fpp2
+library(TTR)#declare library TTR
+library(readxl)
+```
+```{r}
+gold_price <- read_excel("C:/Rutgers/Subjects/Fall Sem/BF/Assignment/week 4/files/gold_price.xlsx") #to import excel file
+
+View(gold_price) #view attributes and records in data
+
+DataFrame<- data.frame(gold_price$Date,gold_price$Price) #load data
+View(DataFrame)
+
+TimeSeries<-ts(DataFrame$gold_price.Price,start=c(2015,01),end=c(2020,07),frequency=12) 
+
+plot(TimeSeries) #plot time Series
+```
+Data converted to timeseries using ts() function to map gold price values with time frame in order to compute different forecasting models. Ranging from (jan-2015 to july-2020)
+
+Time series plotted on line chart
+Analysis based on obervations:
+Data is seasonal: As price of gold is observed to always drop in the late months of a year (sept - dec) and there is an increase by start of next year.
+Also, the price of gold shows increasing curve (trend) as the years pass by
+```{r}
+
+Acf(TimeSeries) #ACF PLOT
+```
+Displays correlation for all the lags in data. Indicating high correlation with the values in the beginning but the correlation decreases as years pass because there is an increasing trend which indicates increase the difference between initial price and price later in time series 
+```{r}
+
+mean_forecast <- meanf(TimeSeries,5) #Mean forecasting 5 ts points forecast
+
+plot(mean_forecast)
+```
+simple forecasting method by assuming that future values will be equal to the historical mean. It's often used as a baseline or benchmark method for comparing with more sophisticated forecasting models.
+
+Observation affter plotting: Not suitable for the gold price data as it calculates mean of all data points due to which it starts forecasting from the mean of entire time series.
+```{r}
+naive_forecast <- naive(TimeSeries,5) #naive forecasting
+
+plot(naive_forecast)
+```
+The naive method is one of the simplest forecasting techniques and involves making predictions by assuming that the future values of a time series will be the same as the most recent observed value.
+
+It yields inaccurate results as it does not take into account seasonality and trend.
+```{r}
+
+rwf_forecast <- rwf(TimeSeries,5) #rwf forecast
+
+rwf_forecast <- rwf(TimeSeries,5, drift=TRUE) # trend rwf drift
+
+plot(rwf_forecast)
+
+```
+The function uses the most recent observed value in the time series as the forecast for all future periods. This is similar to the naive method, but it's called a "random walk" because it models the idea that future values are random (based on recent trend) and follows the same distribution as past values.
+
+The function uses the most recent observed value in the time series as the forecast for all future periods. This is similar to the naive method, but it's called a "random walk" because it models the idea that future values are random (based on recent trend) and follows the same distribution as past values. Also considers Drift as a parameter for trend.
+```{r}
+
+snaive_forecast <- snaive(TimeSeries,5) #seasonal naive
+
+plot(snaive_forecast)
+```
+Takes into account seasonality but does not consider trend. Hence it yields inaccurate outcome.
+```{r}
+
+MA5_forecast <- ma(TimeSeries,order=5) #moving average order5
+MA9_forecast <- ma(TimeSeries,order=9) #moving average order 9
+plot(mean_forecast)
+
+```
+Moving Average forecast with order 5 and 9
+```{r}
+plot(TimeSeries)
+lines(naive_forecast$mean,col="red")
+lines(rwf_forecast$mean,col="green")
+lines(snaive_forecast$mean,col="black")
+lines(MA5_forecast,col="Pink")
+lines(MA9_forecast,col="Blue")
+```
+Forecasting plots for comparision
+```{r}
+attributes(naive_forecast)
+
+ets_forecast <- ets(TimeSeries) #1 no trend seasonality smoothing 
+
+
+plot(ets_forecast)
+attributes(ets_forecast)
+ets_forecast$mse
+```
+ETS (Error, Trend, Seasonal): it is a framework to estimate various exponential smoothing models. It automatically selects the best-fitting model based on the characteristics of your data and estimates a forecast model based on data points. It does not calculate trend and seasonality hence it yields inaccurate forecast in the following case.
+```{r}
+
+HW_forecast <- HoltWinters(TimeSeries)  
+plot(HW_forecast)
+```
+
+Holt Winters: It is an exponential smoothing model which takes into account all 3 components. Applies smoothing for both trend (gamma=true) and seasonality (Beta=true). Suitable for following data as it takes into consideration seasonality and trend.
+```{r}
+
+SSE_Simple <- HoltWinters(TimeSeries,beta=FALSE,gamma=FALSE)
+
+
+attributes(SSE_Simple)
+plot(SSE_Simple)
+SSE_Simple$SSE
+head(SSE_Simple$fitted)
+```
+SSE Simple: It is an exponential smoothing model which takes into account all 3 components.Does apply smoothing for both trend (reason: gamma=False) and seasonality (Reason: Beta=False). Suitable for following data as it takes into consideration seasonality and trend.
+```{r}
+
+forecast_rwf <- forecast(rwf_forecast, h=5) #Random Walk Forest forecast
+plot(forecast_rwf)
+
+forecast_SSE <- forecast(SSE_Simple, h=5) #SSE forecast
+plot(forecast_SSE)
+
+forecast_HW <- forecast(HW_forecast, h=20) #Holtwinters forecast
+plot(forecast_HW)
+
+forecast_ETS <- forecast(ets_forecast, h=5) #ETS forecast
+plot(forecast_ETS)
+
+forecast_MA5_forecast <- forecast(MA5_forecast, h=5) #Moving average of order 5 forecast
+plot(forecast_MA5_forecast)
+
+lines(forecast_SSE$mean,col="red") #sse
+lines(forecast_HW$mean,col="green") #Holtwinters
+lines(forecast_ETS$mean,col="yellow") #ETS
+lines(MA5_forecast,col="pink") #Moving average order 5
+lines(MA9_forecast,col="blue") #moving average order 9
+lines(naive_forecast$mean,col="orange") #naive 
+lines(rwf_forecast$mean,col="purple") #rwf
+lines(snaive_forecast$mean,col="black") #seasonal naive
+```
+Forecast above mentioned algorithm by passing variables for respective forecasting algorithms where h indicates the period w.r.t intervals added
+```{r}
+#Accuracy measures
+accuracy(mean_forecast) #mean
+accuracy(naive_forecast) #naive
+accuracy(rwf_forecast) #rwf
+accuracy(snaive_forecast) #seasonal naive
+accuracy(forecast_MA5_forecast) #Moving average order 5
+accuracy(forecast_SSE) #SSE
+accuracy(forecast_HW) #Holt winters
+```
+Accuracy Measures:
+● Mean Error (ME)
+
+●	Root Mean Squared Error (RMSE)
+
+●	Mean Absolute Error (MAE)
+
+●	Mean Percentage Error (MPE)
+
+●	Mean Absolute Percentage Error (MAPE)
+
+●	Mean Absolute Scaled Error (MASE)
+
+●	Autocorrelation of errors at lag 1 (ACF1)
+
+-> Accuracy Measure Selected for Model Comparison:
+
+●	Mean Absolute Percentage Error (MAPE)
+
+The Mean Percentage Error (MPE) measures the accuracy of forecasts with respect to actual observed values. It's a helpful accuracy metric to use because it calculates average percentage error indicating how well the forecast matches with actual values.
+MPE= (1/N)*∑[(Actual - Forecast)/Actual]*100
+N= No. of observations
+MPE calculates the average percentage: by which the forecasts either overestimate or underestimate from the actual values.
+Positive MPE illustrates that, on average, by what measure the forecasts are overestimating the actual values and a negative MPE indicates that the forecasts are underestimating the actual values.
+
+MPE for different Models:
+
+●	Mean Forecast: -1.294273
+
+●	Naive Forecast: 0.538691
+
+●	Random Walk Forecast: -0.1546792
+
+●	Seasonal Naive Forecast 6.218464
+
+●	Moving Average order=5 : 0.06272455
+
+●	Holt-Winter Forecast: 0.1149414
+
+●	SSE Simple Forecast: 0.5387162
+
+After comparing MPE for all the models, Ḥolt-Winters Forecast is best for the following case as it takes into account both seasonality and trend for calculation as observed in the data set
+
+
+
+
